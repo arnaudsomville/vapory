@@ -164,7 +164,7 @@ def render_docker(string, outfile=None, height=None, width=None,
         resources_folder = Path(tmp_path).joinpath("empty_resources_folder")
         resources_folder.mkdir(parents=True, exist_ok=True)
 
-    docker_output_directory = Path.home().joinpath('vapory_images') #Hardcoded in docker-compose.yml
+    docker_output_directory = Path.home().joinpath('images') #Hardcoded in docker-compose.yml
     docker_output_directory.mkdir(parents=True, exist_ok=True)
 
     cmd = [
@@ -229,10 +229,9 @@ def render_docker(string, outfile=None, height=None, width=None,
             raise("The 'ipython' option only works in the IPython Notebook.")
         return Image(outfile)
 
-    file_path = Path(outfile)
-    if file_path.is_file():
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-    else:    
-        file_path.mkdir(parents=True, exist_ok=True)
+    parent_dir_folder = Path(outfile).parent
+    dir_file_name = Path(outfile).name
+    
 
-    shutil.move(str(docker_output_directory.joinpath('output.png')), str(Path(outfile).resolve()))
+    shutil.copy(str(docker_output_directory.joinpath('output.png')), str(parent_dir_folder))
+    shutil.move(str(parent_dir_folder.joinpath('output.png')), str(parent_dir_folder.joinpath(dir_file_name)))

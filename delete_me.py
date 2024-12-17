@@ -17,7 +17,7 @@ earth_radius = 1.0
 earth_texture = Texture(
     Pigment(
             ImageMap(
-                "tiff", f"\"{str('/resources/images/earth_color_21K.tif')}\"",
+                "tiff", f"\"{str('/resources/images/earth_color_43K.tif')}\"",
                 'map_type', 1, 'interpolate', 2),
             ),
     Finish('diffuse', 0.8, 'ambient', 0, 'specular', 0.2, 'roughness', 0.05)
@@ -32,6 +32,6 @@ scene = Scene(camera, objects=[light, earth], included=['colors.inc'])
 output_folder = Path.home()
 
 # Rendu
-scene.render(str(output_folder.joinpath("earth_render.png")), width=80, height=60, tempfile='temp.pov', docker=True, resources_folder="/home/arnaud/workspace/5a/P2I_5A/P2i_POV_Ray/resources/")
+scene.render(str(output_folder.joinpath("earth_render.png")), width=1920, height=1080, tempfile='temp.pov', docker=True, resources_folder="/home/arnaud/workspace/5a/P2I_5A/P2i_POV_Ray/resources/")
 
 print('Yey')

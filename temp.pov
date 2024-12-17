@@ -11,7 +11,7 @@ texture {
 pigment {
 image_map {
 tiff
-"/resources/images/earth_color_21K.tif"
+"/resources/images/earth_color_43K.tif"
 map_type
 1
 interpolate
@@ -38,7 +38,7 @@ look_at
 angle
 30
 right
-<1.3333333333333333,0,0> 
+<1.7777777777777777,0,0> 
 }
 global_settings{
 
