@@ -52,98 +52,6 @@ def ppm_to_numpy(filename=None, buffer=None, byteorder='>'):
 
     return arr.reshape((int(height), int(width), 3))
 
-def render_docker(string, outfile=None, height=None, width=None,
-                  quality=None, antialiasing=None,
-                  temporarypovfile=None, includedirs=None,
-                  output_alpha=False, resources_folder=None):
-
-    pov_file = str(Path(temporarypovfile or '__temp__.pov').resolve())
-    with open(pov_file, 'w+') as f:
-        f.write(string)
-
-    return_np_array = (outfile is None)
-    display_in_ipython = (outfile == 'ipython')
-
-    format_type = "P" if return_np_array else "N"
-
-    if return_np_array:
-        outfile = '-'
-
-    if display_in_ipython:
-        outfile = '__temp_ipython__.png'
-
-    if resources_folder is None:
-        tmp_path = tempfile.gettempdir()
-        resources_folder = Path(tmp_path).joinpath("empty_resources_folder")
-        resources_folder.mkdir(parents=True, exist_ok=True)
-
-    cmd = [
-        "bash",
-        f"{Path(__file__).parent.joinpath('docker_container/run_povray_container.sh')}",
-        f"{pov_file}"
-    ]
-    cmd.append(str(resources_folder))
-
-    if width is not None:
-        cmd.append(str(width))  # Convert to str
-    if height is not None:
-        cmd.append(str(height))  # Convert to str
-
-    extra_args = []
-    if quality is not None:
-        extra_args.append(f'+Q{quality}')
-    if antialiasing is not None:
-        extra_args.append(f'+A{antialiasing}')
-    if output_alpha:
-        extra_args.append('Output_Alpha=on')
-
-    if includedirs is not None:
-        for dir in includedirs:
-            extra_args.append(f'+L{dir}')
-    extra_args.append(f"Output_File_Type={format_type}")
-    extra_args.append(f"+O{outfile}")
-
-    # Correctly extend extra_args into cmd
-    cmd.extend(extra_args)
-    print("Commande exécutée :", cmd)
-
-    process = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-
-    logs = []  # Liste pour stocker les logs
-
-    # Affiche et stocke les logs en temps réel
-    for line in process.stdout:
-        decoded_line = line.decode('utf-8')
-        print(decoded_line, end='')  # Affiche en temps réel
-        logs.append(decoded_line)   # Stocke dans la liste
-
-    for line in process.stderr:
-        decoded_line = line.decode('utf-8')
-        print(decoded_line, end='')  # Affiche en temps réel
-        logs.append(decoded_line)   # Stocke dans la liste
-
-    process.wait()
-
-    # Vérifie si "Render failed" est présent dans les logs
-    if any("Render failed" in log for log in logs):
-        print("\n[Erreur détectée] Voici les logs complets :\n")
-        print("".join(logs))  # Affiche tous les logs
-        raise IOError("POVRay rendering failed due to 'Render failed' in logs.")
-
-    # Vérifie le code de retour du processus
-    if process.returncode:
-        print("\n[Erreur détectée] Voici les logs complets :\n")
-        print("".join(logs))  # Affiche tous les logs
-        raise IOError(f"POVRay rendering failed with exit code {process.returncode}")
-
-    if return_np_array:
-        return ppm_to_numpy(buffer=process.stdout)
-
-    if display_in_ipython:
-        if not ipython_found:
-            raise("The 'ipython' option only works in the IPython Notebook.")
-        return Image(outfile)
-
 def render_povstring(string, outfile=None, height=None, width=None,
                      quality=None, antialiasing=None, remove_temp=True,
                      show_window=False, temporarypovfile=None, includedirs=None,
@@ -224,6 +132,93 @@ def render_povstring(string, outfile=None, height=None, width=None,
 
     if return_np_array:
         return ppm_to_numpy(buffer=out)
+
+    if display_in_ipython:
+        if not ipython_found:
+            raise("The 'ipython' option only works in the IPython Notebook.")
+        return Image(outfile)
+
+def render_docker(string, outfile=None, height=None, width=None,
+                  quality=None, antialiasing=None,
+                  temporarypovfile=None, includedirs=None,
+                  output_alpha=False, resources_folder=None):
+
+    pov_file = str(Path(temporarypovfile or '__temp__.pov').resolve())
+    with open(pov_file, 'w+') as f:
+        f.write(string)
+
+    return_np_array = (outfile is None)
+    display_in_ipython = (outfile == 'ipython')
+
+    format_type = "P" if return_np_array else "N"
+
+    if return_np_array:
+        outfile = '-'
+
+    if display_in_ipython:
+        outfile = '__temp_ipython__.png'
+
+    if resources_folder is None:
+        tmp_path = tempfile.gettempdir()
+        resources_folder = Path(tmp_path).joinpath("empty_resources_folder")
+        resources_folder.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "bash",
+        f"{Path(__file__).parent.joinpath('docker_container/run_povray_container.sh')}",
+        f"{pov_file}"
+    ]
+    cmd.append(str(resources_folder))
+
+    if width is not None:
+        cmd.append(str(width))  # Convert to str
+    if height is not None:
+        cmd.append(str(height))  # Convert to str
+
+    extra_args = []
+    if quality is not None:
+        extra_args.append(f'+Q{quality}')
+    if antialiasing is not None:
+        extra_args.append(f'+A{antialiasing}')
+    if output_alpha:
+        extra_args.append('Output_Alpha=on')
+
+    if includedirs is not None:
+        for dir in includedirs:
+            extra_args.append(f'+L{dir}')
+    extra_args.append(f"Output_File_Type={format_type}")
+    extra_args.append(f"+O{outfile}")
+
+    # Correctly extend extra_args into cmd
+    cmd.extend(extra_args)
+    print("Commande exécutée :", cmd)
+
+    process = subprocess.run(cmd, capture_output=True, text=True)
+
+    # Stocke et affiche les logs
+    logs = []
+    if process.stdout:
+        # print(process.stdout, end='')  # Affiche stdout
+        logs.extend(process.stdout.splitlines())  # Ajoute les lignes à la liste
+
+    if process.stderr:
+        # print(process.stderr, end='')  # Affiche stderr
+        logs.extend(process.stderr.splitlines())  # Ajoute les lignes à la liste
+
+    # Vérifie si "Render failed" est présent dans les logs
+    if any("Render failed" in log for log in logs):
+        print("\n[Erreur détectée] Voici les logs complets :\n")
+        print("".join(logs))  # Affiche tous les logs
+        raise IOError("POVRay rendering failed due to 'Render failed' in logs.")
+
+    # Vérifie le code de retour du processus
+    if process.returncode:
+        print("\n[Erreur détectée] Voici les logs complets :\n")
+        print("".join(logs))  # Affiche tous les logs
+        raise IOError(f"POVRay rendering failed with exit code {process.returncode}")
+
+    if return_np_array:
+        return ppm_to_numpy(buffer=process.stdout)
 
     if display_in_ipython:
         if not ipython_found:
