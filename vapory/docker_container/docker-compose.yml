@@ -3,12 +3,12 @@ version: '3.8'
 services:
   povray:
     image: jmaxwilson/povray
-    container_name: povray_renderer
+    container_name: vapory_povray_renderer
     volumes:
-      - ${POVRAY_INPUT_FILE}:/images/input.pov  # Monte le fichier d'entrée
+      - ${POVRAY_INPUT_FILE}:/vapory_images/input.pov  # Monte le fichier d'entrée
       - ${POVRAY_RESOURCES}:/resources          # Monte le répertoire des ressources
-      - ~/images:/images                        # Répertoire des images en sortie
-    working_dir: /images
+      - ~/vapory_images:/vapory_images                 # Répertoire des images en sortie
+    working_dir: /vapory_images
     environment:
       POVRAY_WIDTH: "${POVRAY_WIDTH:-1920}"      # Largeur par défaut
       POVRAY_HEIGHT: "${POVRAY_HEIGHT:-1080}"    # Hauteur par défaut
