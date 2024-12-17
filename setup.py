@@ -13,13 +13,21 @@ except ImportError:
 
 from setuptools import setup, find_packages
 
-exec(open('vapory/version.py').read()) # loads __version__
+exec(open('vapory/version.py').read())  # Charge __version__
 
-setup(name='Vapory',
-      version=__version__,
-      author='Zulko',
+setup(
+    name='Vapory',
+    version=__version__,
+    author='Zulko',
     description='3D rendering with Python and POV-Ray',
     long_description=open('README.rst').read(),
     license='see LICENSE.txt',
     keywords="3D POV-Ray Photo-realistic ray-tracing",
-    packages= find_packages(exclude='docs'))
+    packages=find_packages(exclude=['docs']),
+    include_package_data=True,  # Permet d'inclure des fichiers non-Python
+    package_data={
+        'vapory': [
+            'docker_container/*',  # Inclut tout dans le dossier docker_container
+        ]
+    },
+)
