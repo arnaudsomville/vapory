@@ -5,6 +5,7 @@ All the advanced Input/Output operations for Vapory
 import re
 import os
 import subprocess
+from pathlib import Path
 from .config import POVRAY_BINARY
 
 try:
@@ -50,7 +51,94 @@ def ppm_to_numpy(filename=None, buffer=None, byteorder='>'):
 
     return arr.reshape((int(height), int(width), 3))
 
+def render_docker(string, outfile=None, height=None, width=None,
+                     quality=None, antialiasing=None,
+                      tempfile=None, includedirs=None,
+                     output_alpha=False):
 
+    """ Renders the provided scene description with POV-Ray.
+
+    Parameters
+    ------------
+
+    string
+      A string representing valid POVRay code. Typically, it will be the result
+      of scene(*objects)
+
+    outfile
+      Name of the PNG file for the output.
+      If outfile is None, a numpy array is returned (if numpy is installed).
+      If outfile is 'ipython' and this function is called last in an IPython
+      notebook cell, this will print the result in the notebook.
+
+    height
+      height in pixels
+
+    width
+      width in pixels
+
+    output_alpha
+      If true, the background will be transparent,
+    rather than the default black background.  Note
+    that this option is ignored if rendering to a
+    numpy array, due to limitations of the intermediate
+    ppm format.
+
+    """
+
+    pov_file = tempfile or '__temp__.pov'
+    with open(pov_file, 'w+') as f:
+        f.write(string)
+
+    return_np_array = (outfile is None)
+    display_in_ipython = (outfile=='ipython')
+
+    format_type = "P" if return_np_array else "N"
+
+    if return_np_array:
+        outfile='-'
+
+    if display_in_ipython:
+        outfile = '__temp_ipython__.png'
+
+    cmd = f"bash run_{Path(__file__).parents[1].joinpath('docker_container/run_povray_container.sh')} {pov_file} {width}"
+    cmd.append()
+    if height is not None: cmd.append(' +H%d'%height)
+    if width is not None: cmd.append(' +W%d'%width)
+
+    extra_args = ""
+    if quality is not None: 
+        extra_args.append(' +Q%d'%quality)
+    if antialiasing is not None:
+        extra_args.append(' +A%f'%antialiasing)
+    if output_alpha:
+        extra_args.append(' Output_Alpha=on')
+
+    if includedirs is not None:
+        for dir in includedirs:
+            extra_args.append(' +L%s'%dir)
+    extra_args.append(" Output_File_Type=%s"%format_type)
+    extra_args.append(" +O%s"%outfile)
+
+    cmd.append(extra_args)
+
+    process = subprocess.Popen(cmd, stderr=subprocess.PIPE,
+                                    stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE)
+
+    out, err = process.communicate(string.encode('ascii'))
+
+    if process.returncode:
+        print(type(err), err)
+        raise IOError("POVRay rendering failed with the following error: "+err.decode('ascii'))
+
+    if return_np_array:
+        return ppm_to_numpy(buffer=out)
+
+    if display_in_ipython:
+        if not ipython_found:
+            raise("The 'ipython' option only works in the IPython Notebook.")
+        return Image(outfile)
 
 def render_povstring(string, outfile=None, height=None, width=None,
                      quality=None, antialiasing=None, remove_temp=True,
