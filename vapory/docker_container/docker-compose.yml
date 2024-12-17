@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  povray:
+  vapory_povray_renderer:
     image: jmaxwilson/povray
     container_name: vapory_povray_renderer
     volumes:
