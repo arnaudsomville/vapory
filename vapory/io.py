@@ -6,6 +6,7 @@ import re
 import os
 import subprocess
 from pathlib import Path
+import tempfile
 from .config import POVRAY_BINARY
 
 try:
@@ -52,88 +53,91 @@ def ppm_to_numpy(filename=None, buffer=None, byteorder='>'):
     return arr.reshape((int(height), int(width), 3))
 
 def render_docker(string, outfile=None, height=None, width=None,
-                     quality=None, antialiasing=None,
-                      tempfile=None, includedirs=None,
-                     output_alpha=False):
+                  quality=None, antialiasing=None,
+                  temporarypovfile=None, includedirs=None,
+                  output_alpha=False, resources_folder=None):
 
-    """ Renders the provided scene description with POV-Ray.
-
-    Parameters
-    ------------
-
-    string
-      A string representing valid POVRay code. Typically, it will be the result
-      of scene(*objects)
-
-    outfile
-      Name of the PNG file for the output.
-      If outfile is None, a numpy array is returned (if numpy is installed).
-      If outfile is 'ipython' and this function is called last in an IPython
-      notebook cell, this will print the result in the notebook.
-
-    height
-      height in pixels
-
-    width
-      width in pixels
-
-    output_alpha
-      If true, the background will be transparent,
-    rather than the default black background.  Note
-    that this option is ignored if rendering to a
-    numpy array, due to limitations of the intermediate
-    ppm format.
-
-    """
-
-    pov_file = tempfile or '__temp__.pov'
+    pov_file = str(Path(temporarypovfile or '__temp__.pov').resolve())
     with open(pov_file, 'w+') as f:
         f.write(string)
 
     return_np_array = (outfile is None)
-    display_in_ipython = (outfile=='ipython')
+    display_in_ipython = (outfile == 'ipython')
 
     format_type = "P" if return_np_array else "N"
 
     if return_np_array:
-        outfile='-'
+        outfile = '-'
 
     if display_in_ipython:
         outfile = '__temp_ipython__.png'
 
-    cmd = f"bash run_{Path(__file__).parents[1].joinpath('docker_container/run_povray_container.sh')} {pov_file} {width}"
-    cmd.append()
-    if height is not None: cmd.append(' +H%d'%height)
-    if width is not None: cmd.append(' +W%d'%width)
+    if resources_folder is None:
+        tmp_path = tempfile.gettempdir()
+        resources_folder = Path(tmp_path).joinpath("empty_resources_folder")
+        resources_folder.mkdir(parents=True, exist_ok=True)
 
-    extra_args = ""
-    if quality is not None: 
-        extra_args.append(' +Q%d'%quality)
+    cmd = [
+        "bash",
+        f"{Path(__file__).parents[1].joinpath('docker_container/run_povray_container.sh')}",
+        f"{pov_file}"
+    ]
+    cmd.append(str(resources_folder))
+
+    if width is not None:
+        cmd.append(str(width))  # Convert to str
+    if height is not None:
+        cmd.append(str(height))  # Convert to str
+
+    extra_args = []
+    if quality is not None:
+        extra_args.append(f'+Q{quality}')
     if antialiasing is not None:
-        extra_args.append(' +A%f'%antialiasing)
+        extra_args.append(f'+A{antialiasing}')
     if output_alpha:
-        extra_args.append(' Output_Alpha=on')
+        extra_args.append('Output_Alpha=on')
 
     if includedirs is not None:
         for dir in includedirs:
-            extra_args.append(' +L%s'%dir)
-    extra_args.append(" Output_File_Type=%s"%format_type)
-    extra_args.append(" +O%s"%outfile)
+            extra_args.append(f'+L{dir}')
+    extra_args.append(f"Output_File_Type={format_type}")
+    extra_args.append(f"+O{outfile}")
 
-    cmd.append(extra_args)
+    # Correctly extend extra_args into cmd
+    cmd.extend(extra_args)
+    print("Commande exécutée :", cmd)
 
-    process = subprocess.Popen(cmd, stderr=subprocess.PIPE,
-                                    stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE)
+    process = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
-    out, err = process.communicate(string.encode('ascii'))
+    logs = []  # Liste pour stocker les logs
 
+    # Affiche et stocke les logs en temps réel
+    for line in process.stdout:
+        decoded_line = line.decode('utf-8')
+        print(decoded_line, end='')  # Affiche en temps réel
+        logs.append(decoded_line)   # Stocke dans la liste
+
+    for line in process.stderr:
+        decoded_line = line.decode('utf-8')
+        print(decoded_line, end='')  # Affiche en temps réel
+        logs.append(decoded_line)   # Stocke dans la liste
+
+    process.wait()
+
+    # Vérifie si "Render failed" est présent dans les logs
+    if any("Render failed" in log for log in logs):
+        print("\n[Erreur détectée] Voici les logs complets :\n")
+        print("".join(logs))  # Affiche tous les logs
+        raise IOError("POVRay rendering failed due to 'Render failed' in logs.")
+
+    # Vérifie le code de retour du processus
     if process.returncode:
-        print(type(err), err)
-        raise IOError("POVRay rendering failed with the following error: "+err.decode('ascii'))
+        print("\n[Erreur détectée] Voici les logs complets :\n")
+        print("".join(logs))  # Affiche tous les logs
+        raise IOError(f"POVRay rendering failed with exit code {process.returncode}")
 
     if return_np_array:
-        return ppm_to_numpy(buffer=out)
+        return ppm_to_numpy(buffer=process.stdout)
 
     if display_in_ipython:
         if not ipython_found:
@@ -142,7 +146,7 @@ def render_docker(string, outfile=None, height=None, width=None,
 
 def render_povstring(string, outfile=None, height=None, width=None,
                      quality=None, antialiasing=None, remove_temp=True,
-                     show_window=False, tempfile=None, includedirs=None,
+                     show_window=False, temporarypovfile=None, includedirs=None,
                      output_alpha=False):
 
     """ Renders the provided scene description with POV-Ray.
@@ -175,7 +179,7 @@ def render_povstring(string, outfile=None, height=None, width=None,
 
     """
 
-    pov_file = tempfile or '__temp__.pov'
+    pov_file = temporarypovfile or '__temp__.pov'
     with open(pov_file, 'w+') as f:
         f.write(string)
 

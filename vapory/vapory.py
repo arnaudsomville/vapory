@@ -58,7 +58,7 @@ class Scene:
     def render(self, outfile=None, height=None, width=None,
                      quality=None, antialiasing=None, remove_temp=True,
                      auto_camera_angle=True, show_window=False, tempfile=None,
-                     includedirs=None, output_alpha=False, docker=False):
+                     includedirs=None, output_alpha=False, docker=False, resources_folder=None):
 
         """ Renders the scene to a PNG, a numpy array, or the IPython Notebook.
 
@@ -91,8 +91,8 @@ class Scene:
 
         if docker:
           return render_docker(str(self), outfile, height, width,
-                              quality, antialiasing, remove_temp, show_window,
-                              tempfile, includedirs, output_alpha)
+                              quality, antialiasing,tempfile, includedirs,
+                              output_alpha,resources_folder)
         else:
           return render_povstring(str(self), outfile, height, width,
                                 quality, antialiasing, remove_temp, show_window,
