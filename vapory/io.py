@@ -79,7 +79,7 @@ def render_docker(string, outfile=None, height=None, width=None,
 
     cmd = [
         "bash",
-        f"{Path(__file__).parents[1].joinpath('docker_container/run_povray_container.sh')}",
+        f"{Path(__file__).parent.joinpath('docker_container/run_povray_container.sh')}",
         f"{pov_file}"
     ]
     cmd.append(str(resources_folder))
