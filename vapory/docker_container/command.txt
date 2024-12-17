@@ -1,0 +1,3 @@
+./rm_containers_vapory.sh ~/input.pov ~/workspace/5a/P2I_5A/P2i_POV_Ray/resources/ 1920 1080 "-A"
+
+./run_povray_container.sh ~/input.pov ~/workspace/5a/P2I_5A/P2i_POV_Ray/resources/ 1920 1080 "-A"

@@ -235,4 +235,4 @@ def render_docker(string, outfile=None, height=None, width=None,
     else:    
         file_path.mkdir(parents=True, exist_ok=True)
 
-    shutil.copy(str(docker_output_directory.joinpath('output.png')), outfile)
+    shutil.move(str(docker_output_directory.joinpath('output.png')), str(Path(outfile).resolve()))

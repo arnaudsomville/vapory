@@ -32,6 +32,6 @@ scene = Scene(camera, objects=[light, earth], included=['colors.inc'])
 output_folder = Path.home()
 
 # Rendu
-scene.render(output_folder.joinpath("earth_render.png"), width=80, height=60, tempfile='temp.pov', docker=True, resources_folder="/home/arnaud/workspace/5a/P2I_5A/P2i_POV_Ray/resources/")
+scene.render(str(output_folder.joinpath("earth_render.png")), width=80, height=60, tempfile='temp.pov', docker=True, resources_folder="/home/arnaud/workspace/5a/P2I_5A/P2i_POV_Ray/resources/")
 
 print('Yey')
