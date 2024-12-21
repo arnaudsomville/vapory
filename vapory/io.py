@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 import tempfile
+from typing import List, Optional
 from .config import POVRAY_BINARY
 
 try:
@@ -233,5 +234,97 @@ def render_docker(string, outfile=None, height=None, width=None,
     dir_file_name = Path(outfile).name
     
 
-    shutil.copy(str(docker_output_directory.joinpath('output.png')), str(parent_dir_folder))
-    shutil.move(str(parent_dir_folder.joinpath('output.png')), str(parent_dir_folder.joinpath(dir_file_name)))
+    shutil.move(str(docker_output_directory.joinpath('output.png')), str(Path(outfile).resolve()))
+
+def render_docker_windaube(
+    string: str,
+    outfile: Optional[str] = None,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    quality: Optional[int] = None,
+    antialiasing: Optional[float] = None,
+    temporarypovfile: Optional[str] = None,
+    includedirs: Optional[List[str]] = None,
+    output_alpha: bool = False,
+    resources_folder: Optional[str] = None,
+) -> None:
+    """
+    Renders a scene using Docker on Windows via a PowerShell script.
+
+    Args:
+        string (str): The scene description in POV-Ray format.
+        outfile (Optional[str]): The output file path for the rendered image.
+        height (Optional[int]): Image height in pixels.
+        width (Optional[int]): Image width in pixels.
+        quality (Optional[int]): Render quality setting.
+        antialiasing (Optional[float]): Antialiasing setting.
+        temporarypovfile (Optional[str]): Path to temporary POV-Ray file.
+        includedirs (Optional[List[str]]): Directories for additional include files.
+        output_alpha (bool): Whether to enable alpha channel in the output.
+        resources_folder (Optional[str]): Folder containing required resources.
+    """
+    pov_file = str(Path(temporarypovfile or '__temp__.pov').resolve())
+    with open(pov_file, 'w+', encoding='utf-8') as f:
+        f.write(string)
+
+    if resources_folder is None:
+        tmp_path = tempfile.gettempdir()
+        resources_folder = Path(tmp_path).joinpath("empty_resources_folder")
+        resources_folder.mkdir(parents=True, exist_ok=True)
+
+    docker_output_directory = Path.home().joinpath('images')
+    docker_output_directory.mkdir(parents=True, exist_ok=True)
+
+    extra_args = []
+    if quality is not None:
+        extra_args.append(f'+Q{quality}')
+    if antialiasing is not None:
+        extra_args.append(f'+A{antialiasing}')
+    else:
+        extra_args.append('-A')
+
+    if output_alpha:
+        extra_args.append('Output_Alpha=on')
+    if includedirs is not None:
+        for dir in includedirs:
+            extra_args.append(f'+L{dir}')
+    extra_args = ' '.join(extra_args)
+
+    # Préparation de la commande PowerShell
+    ps1_file = Path(__file__).parent.joinpath('docker_container/run_povray_container.ps1')
+    cmd = [
+        "powershell",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(ps1_file),
+        "-InputFile", str(pov_file),
+        "-Resources", str(resources_folder),
+        "-Width", str(width or 1920),
+        "-Height", str(height or 1080),
+        "-ExtraParams", f"'{extra_args}'",
+    ]
+
+    print("Executing command:", " ".join(cmd))
+    process = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", shell=False)
+
+    logs = []
+    if process.stdout:
+        logs.extend(process.stdout.splitlines())
+    if process.stderr:
+        logs.extend(process.stderr.splitlines())
+
+    if any("Render failed" in log for log in logs):
+        print("\n[Error detected] Logs:\n", "\n".join(logs))
+        raise IOError("POVRay rendering failed due to 'Render failed' in logs.")
+
+    if process.returncode:
+        print("\n[Error detected] Logs:\n", "\n".join(logs))
+        raise IOError(f"POVRay rendering failed with exit code {process.returncode}")
+
+    output_path = Path(outfile).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(docker_output_directory.joinpath('output.png')), str(output_path))
+
+    print(f"Rendered image saved to: {output_path}")

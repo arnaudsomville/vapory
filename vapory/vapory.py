@@ -1,7 +1,8 @@
+import os
 import webbrowser # <= to open the POVRay help
 from copy import deepcopy
 import re
-from .io import render_docker, render_povstring
+from .io import render_docker, render_docker_windaube, render_povstring
 
 from .helpers import WIKIREF, vectorize, format_if_necessary
 
@@ -90,9 +91,18 @@ class Scene:
             self.camera = self.camera.add_args(['right', [1.0*width/height, 0,0]])
 
         if docker:
-          return render_docker(str(self), outfile, height, width,
-                              quality, antialiasing,tempfile, includedirs,
-                              output_alpha,resources_folder)
+          if os.name != 'nt':
+            return render_docker(
+              str(self), outfile, height, width,
+              quality, antialiasing,tempfile, includedirs,
+              output_alpha,resources_folder
+            )
+          else:
+            return render_docker_windaube(
+                str(self), outfile, height, width,
+                quality, antialiasing,tempfile, includedirs,
+                output_alpha,resources_folder
+            )
         else:
           return render_povstring(str(self), outfile, height, width,
                                 quality, antialiasing, remove_temp, show_window,
