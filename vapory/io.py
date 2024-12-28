@@ -318,6 +318,10 @@ def render_docker_windaube(
     if any("Render failed" in log for log in logs):
         print("\n[Error detected] Logs:\n", "\n".join(logs))
         raise IOError("POVRay rendering failed due to 'Render failed' in logs.")
+    
+    if any("Out of Memory" in log for log in logs):
+        print("\n[Error detected] Logs:\n", "\n".join(logs))
+        raise IOError("POVRay rendering failed due to 'Out of Memory' in logs.")
 
     if process.returncode:
         print("\n[Error detected] Logs:\n", "\n".join(logs))
@@ -325,6 +329,11 @@ def render_docker_windaube(
 
     output_path = Path(outfile).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not docker_output_directory.joinpath('output.png').exists():
+        print("\n[Error detected] Logs:\n", "\n".join(logs))
+        raise IOError("POVRay rendering failed due to 'Does not exist' in logs.")
+
     shutil.move(str(docker_output_directory.joinpath('output.png')), str(output_path))
 
     print(f"Rendered image saved to: {output_path}")

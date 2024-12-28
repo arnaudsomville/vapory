@@ -18,4 +18,4 @@ $env:POVRAY_WIDTH = "$Width"
 $env:POVRAY_HEIGHT = "$Height"
 $env:POVRAY_EXTRA_PARAMS = "$ExtraParams"
 
-docker-compose up
+docker-compose -f (Join-Path $PSScriptRoot "docker-compose.yml") up
